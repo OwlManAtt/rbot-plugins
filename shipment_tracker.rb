@@ -3,7 +3,7 @@ require 'nokogiri'
 require 'open-uri'
 require 'json' # fuck fedex in the ass
 
-class ShipmentTrackerPlugin < Plugin
+module ::ShipmentScreenScraper
   class ShipmentStatus
     @number = nil
     @location = nil
@@ -26,26 +26,7 @@ class ShipmentTrackerPlugin < Plugin
     end
   end # ShipmentStatus
 
-  def status(m, params)
-    number = params[:number]
-    carrier = params[:carrier].downcase
-
-    method = "fetch_#{carrier}"
-    if self.respond_to? method
-      status = self.send method, number 
-      
-      if status
-        m.reply status.ircify
-      else # status = nil
-        m.reply "Sorry, no information is available."
-      end # status
-    else
-      m.reply "Sorry, that courier service is not supported. :("
-    end
-  end # status
-
-  protected
-  def fetch_ups(number)
+  def self.fetch_ups(number)
     doc = Nokogiri::HTML(open("http://wwwapps.ups.com/WebTracking/processInputRequest?sort_by=status&tracknums_displayed=1&TypeOfInquiryNumber=T&loc=en_US&InquiryNumber1=#{number}&track.x=0&track.y=0"))
     latest_row = doc.search('fieldset[@id=showPackageProgress]//tr')[1]
     if latest_row
@@ -61,7 +42,7 @@ class ShipmentTrackerPlugin < Plugin
     end
   end # fetch UPS
 
-  def fetch_fedex(number)
+  def self.fetch_fedex(number)
     doc = open("http://www.fedex.com/Tracking?language=english&cntry_code=us&tracknumbers=#{number}")
 
     data = ''
@@ -93,6 +74,28 @@ class ShipmentTrackerPlugin < Plugin
       nil
     end
   end # fetch fedex
+ 
+end
+
+class ShipmentTrackerPlugin < Plugin
+  def status(m, params)
+    number = params[:number]
+    carrier = params[:carrier].downcase
+
+    method = "fetch_#{carrier}"
+    if ShipmentScreenScraper.respond_to? method
+      status = ShipmentScreenScraper.send method, number 
+      
+      if status
+        m.reply status.ircify
+      else # status = nil
+        m.reply "Sorry, no information is available."
+      end # status
+    else
+      m.reply "Sorry, that courier service is not supported. :("
+    end
+  end # status
+
 end # ShipmentTrackerPlugin 
 plugin = ShipmentTrackerPlugin.new
 plugin.map 'shipment :number :carrier', :action => 'status'
