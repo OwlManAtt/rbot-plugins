@@ -1,3 +1,6 @@
+# Copyright 2010 owlmanatt <owlmanatt@gmail.com>. 
+# No rights reserved, go hog wild.
+
 require 'rubygems'
 require 'nokogiri'
 require 'open-uri'
