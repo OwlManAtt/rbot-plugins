@@ -9,11 +9,11 @@ module String
   def humanize
     self.gsub(/_id$/, "").gsub(/_/, " ").capitalize
   end
-end
+end # string
 
 class FFWorldStatusPlugin < Plugin
   def help(plugin, topic='')
-    "Queries FFXIV world server status from ffxiv-status.com. Say ``@ffxiv {server}'' to get status. If no world is specified, Figaro is used."
+    "FFXIV utilities. Usage: ffxiv => Figaro world status. ffxiv status [world] => server status. ffxiv leves => guildleve reset countdown. "
   end # help
 
   def realm_status(m, params)
@@ -56,9 +56,26 @@ class FFWorldStatusPlugin < Plugin
     else
       m.reply "Sorry, I don't know about that server."
     end
-
   end # realm_status
+
+  def leve_timer(m, params)
+    # Guildleves reset every 48h on the 00:00:00. This is September 12th 00:00:00:
+    epoch = Time.at(1284249600)
+    now = Time.now
+    one_day = (60 * 60 * 24)
+
+    days_since_epoch = ((now - epoch) / one_day).to_i
+    if days_since_epoch.even?
+      next_reset = one_day * 2 - now.seconds_since_midnight.to_i
+    else
+      next_reset = one_day - now.seconds_since_midnight.to_i 
+    end
+    
+    m.reply "Guildleves will reset in #{Utils.secs_to_string(next_reset)}"
+  end
+
 end # OwlPlugin
 plugin = FFWorldStatusPlugin.new
+plugin.map 'ffxiv leves', :action => 'leve_timer'
+plugin.map 'ffxiv status :realm', :action => 'realm_status'
 plugin.map 'ffxiv', :action => 'realm_status'
-plugin.map 'ffxiv :realm', :action => 'realm_status'
