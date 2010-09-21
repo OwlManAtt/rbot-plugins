@@ -59,19 +59,23 @@ class FFWorldStatusPlugin < Plugin
   end # realm_status
 
   def leve_timer(m, params)
-    # Guildleves reset every 48h on the 00:00:00. This is September 12th 00:00:00:
-    epoch = Time.at(1284249600)
+    # #Guildleves reset every 48h on the 00:00:00. This is September 12th 00:00:00:
+    # epoch = Time.at(1284249600)
+    #
+    # OK beta ended, retail is 36h reset. Epoch is Sep 21 2010 00:00:00 UTC.
+    epoch = Time.at(1285027200)
     now = Time.now
-    one_day = (60 * 60 * 24)
-
-    days_since_epoch = ((now - epoch) / one_day).to_i
-    if days_since_epoch.even?
-      next_reset = one_day * 2 - now.seconds_since_midnight.to_i
-    else
-      next_reset = one_day - now.seconds_since_midnight.to_i 
-    end
+    period_seconds = 60 * 60 * 36
     
-    m.reply "Guildleves will reset in #{Utils.secs_to_string(next_reset)}"
+    periods_since = (now - epoch) / period_seconds
+
+    # right on the nose would fuck it up and report 0 seconds instead of now + period. 
+    periods_since += 1 if periods_since == periods_since.ceil
+
+    next_reset = epoch + (periods_since.ceil * period_seconds)
+    seconds_remaining = next_reset - now
+
+    m.reply "Guildleves will reset in #{Utils.secs_to_string(seconds_remaining)}"
   end
 
 end # OwlPlugin
