@@ -62,8 +62,8 @@ class FFWorldStatusPlugin < Plugin
     # #Guildleves reset every 48h on the 00:00:00. This is September 12th 00:00:00:
     # epoch = Time.at(1284249600)
     #
-    # OK beta ended, retail is 36h reset. Epoch is Sep 21 2010 00:00:00 UTC.
-    epoch = Time.at(1285027200)
+    # OK beta ended, retail is 36h reset. Epoch is Sep 22 01:00:00 UTC 2010. 
+    epoch = Time.at(1285117200)
     now = Time.now
     period_seconds = 60 * 60 * 36
     
