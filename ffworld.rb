@@ -81,5 +81,6 @@ class FFXIVPlugin < Plugin
 end # OwlPlugin
 plugin = FFXIVPlugin.new
 plugin.map 'ffxiv leves', :action => 'leve_timer'
+plugin.map 'ffxiv leve', :action => 'leve_timer' # goons are bad at timezones AND inflection
 plugin.map 'ffxiv status :realm', :action => 'realm_status'
 plugin.map 'ffxiv', :action => 'realm_status'
