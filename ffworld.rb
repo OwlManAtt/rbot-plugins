@@ -12,6 +12,16 @@ module String
 end # string
 
 class FFXIVPlugin < Plugin
+  LEVE_EPOCH = Time.at(1285113600) # Sep 22 00:00:00 UTC 2010 
+  LEVE_RESET_PERIOD = 60 * 60 * 36 # 36 hours 
+  @timer_handle = nil
+
+  def initialize
+    super
+    
+    add_leve_announce()
+  end
+
   def help(plugin, topic='')
     "FFXIV utilities. Usage: ffxiv => Figaro world status. ffxiv status [world] => server status. ffxiv leves => guildleve reset countdown. "
   end # help
@@ -59,28 +69,81 @@ class FFXIVPlugin < Plugin
   end # realm_status
 
   def leve_timer(m, params)
-    # #Guildleves reset every 48h on the 00:00:00. This is September 12th 00:00:00:
-    # epoch = Time.at(1284249600)
-    #
-    # OK beta ended, retail is 36h reset. Epoch is Sep 22 00:00:00 UTC 2010. 
-    epoch = Time.at(1285113600)
-    now = Time.now
-    period_seconds = 60 * 60 * 36
-    
-    periods_since = (now - epoch) / period_seconds
+    m.reply "Guildleves will reset in #{Utils.secs_to_string(time_to_leve_reset)}"
+  end
+
+  def cleanup
+    remove_leve_announce()
+  end
+
+  def time_to_leve_reset(now = Time.now)
+    periods_since = (now - LEVE_EPOCH) / LEVE_RESET_PERIOD 
 
     # right on the nose would fuck it up and report 0 seconds instead of now + period. 
     periods_since += 1 if periods_since == periods_since.ceil
 
-    next_reset = epoch + (periods_since.ceil * period_seconds)
-    seconds_remaining = next_reset - now
-
-    m.reply "Guildleves will reset in #{Utils.secs_to_string(seconds_remaining)}"
+    next_reset = LEVE_EPOCH + (periods_since.ceil * LEVE_RESET_PERIOD)
+    
+    return next_reset - now
   end
 
-end # OwlPlugin
+  def debug_next(m, params)
+    h = @timer_handle
+
+    @bot.timer.instance_eval do 
+      m.reply "Handle invalid." unless @actions.key? h
+      m.reply "Next run @ #{@actions[h].next}"
+    end
+  end
+
+  def admin_channel(m, params)
+    if params.key? :chan
+      @registry[:announce_channel] = params[:chan]
+      reset_leve_announce()
+    end
+
+    m.reply "Announce channel is '#{@registry[:announce_channel]}'"
+  end
+
+  protected
+  def add_leve_announce
+    now = Time.now
+    next_reset = now + time_to_leve_reset(now)
+    announce_channel = @registry[:announce_channel]
+    
+    if announce_channel
+      @timer_handle = @bot.timer.add(LEVE_RESET_PERIOD, {:start => next_reset}) do
+        @bot.say announce_channel, "\02\00309FFXIV\02 - Guild leves have been reset!\003" 
+      end
+    else
+      debug 'No announce channel set in the registry - announce timer not queued.' 
+    end
+  end
+
+  def remove_leve_announce
+    @bot.timer.remove(@timer_handle)
+    @timer_handle = nil
+  end
+
+  def reset_leve_announce
+    remove_leve_announce()
+    add_leve_announce()
+  end
+end # FFXIVPlugin 
+
 plugin = FFXIVPlugin.new
+plugin.default_auth('debug', false)
+plugin.default_auth('edit', false)
+
+# User commands
 plugin.map 'ffxiv leves', :action => 'leve_timer'
-plugin.map 'ffxiv leve', :action => 'leve_timer' # goons are bad at timezones AND inflection
+plugin.map 'ffxiv leve', :action => 'leve_timer'
 plugin.map 'ffxiv status :realm', :action => 'realm_status'
+
+# Admin shit
+plugin.map 'ffxiv admin chan :chan', :action => 'admin_channel', :auth_path => 'edit'
+plugin.map 'ffxiv admin chan', :action => 'admin_channel', :auth_path => 'edit'
+plugin.map 'ffxiv debug announce next', :action => 'debug_next', :auth_path => 'debug'
+
+# Default
 plugin.map 'ffxiv', :action => 'realm_status'
