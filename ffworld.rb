@@ -11,7 +11,7 @@ module String
   end
 end # string
 
-class FFWorldStatusPlugin < Plugin
+class FFXIVPlugin < Plugin
   def help(plugin, topic='')
     "FFXIV utilities. Usage: ffxiv => Figaro world status. ffxiv status [world] => server status. ffxiv leves => guildleve reset countdown. "
   end # help
@@ -62,8 +62,8 @@ class FFWorldStatusPlugin < Plugin
     # #Guildleves reset every 48h on the 00:00:00. This is September 12th 00:00:00:
     # epoch = Time.at(1284249600)
     #
-    # OK beta ended, retail is 36h reset. Epoch is Sep 22 01:00:00 UTC 2010. 
-    epoch = Time.at(1285117200)
+    # OK beta ended, retail is 36h reset. Epoch is Sep 22 00:00:00 UTC 2010. 
+    epoch = Time.at(1285113600)
     now = Time.now
     period_seconds = 60 * 60 * 36
     
@@ -79,7 +79,7 @@ class FFWorldStatusPlugin < Plugin
   end
 
 end # OwlPlugin
-plugin = FFWorldStatusPlugin.new
+plugin = FFXIVPlugin.new
 plugin.map 'ffxiv leves', :action => 'leve_timer'
 plugin.map 'ffxiv status :realm', :action => 'realm_status'
 plugin.map 'ffxiv', :action => 'realm_status'
