@@ -154,8 +154,7 @@ plugin.default_auth('debug', false)
 plugin.default_auth('edit', false)
 
 # Informational commands
-plugin.map 'ffxiv leves', :action => 'leve_timer'
-plugin.map 'ffxiv leve', :action => 'leve_timer'
+['ffxiv leve[s]', 'leve', 'leves'].each { |c| plugin.map c, :action => 'leve_timer' }
 plugin.map 'ffxiv status :realm', :action => 'realm_status'
 
 # User settings
