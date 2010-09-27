@@ -12,22 +12,22 @@ module String
 end # string
 
 class FFXIVPlugin < Plugin
+  DEFAULT_STATUS_REALM = 'figaro'
   LEVE_EPOCH = Time.at(1285113600) # Sep 22 00:00:00 UTC 2010 
   LEVE_RESET_PERIOD = 60 * 60 * 36 # 36 hours 
   @timer_handle = nil
 
   def initialize
     super
-    
     add_leve_announce()
   end
 
   def help(plugin, topic='')
-    "FFXIV utilities. Usage: ffxiv => Figaro world status. ffxiv status [world] => server status. ffxiv leves => guildleve reset countdown. "
+    "FFXIV utilities. Usage: ffxiv => Figaro world status. ffxiv status [world] => server status. ffxiv set world [world] => set your own default server to check the status of. ffxiv leves => guildleve reset countdown."
   end # help
 
   def realm_status(m, params)
-    world = params.has_key?(:realm) ? params[:realm].downcase : 'figaro' 
+    world = params.has_key?(:realm) ? params[:realm].downcase : get_default_realm(m.sourcenick)
     worlds = Hash.new 
 
     # 1996-style HTML. Fuck my life with a ferret.
@@ -68,8 +68,19 @@ class FFXIVPlugin < Plugin
     end
   end # realm_status
 
+  def set_default_world(m, params)
+    k = "world_#{m.sourcenick}"
+    if params[:world] == 'nil'
+      @registry.delete k
+    else
+      @registry[k] = params[:world]
+    end
+
+    m.okay
+  end # set_default_world
+
   def leve_timer(m, params)
-    m.reply "Guildleves will reset in #{Utils.secs_to_string(time_to_leve_reset)}"
+    m.reply "Guildleves will reset in #{Utils.secs_to_string(time_to_leve_reset)}."
   end
 
   def cleanup
@@ -106,6 +117,13 @@ class FFXIVPlugin < Plugin
   end
 
   protected
+  def get_default_realm(nick)
+    k = "world_#{nick}"
+    return DEFAULT_STATUS_REALM unless @registry.key? k
+
+    @registry[k]
+  end
+
   def add_leve_announce
     now = Time.now
     next_reset = now + time_to_leve_reset(now)
@@ -135,10 +153,13 @@ plugin = FFXIVPlugin.new
 plugin.default_auth('debug', false)
 plugin.default_auth('edit', false)
 
-# User commands
+# Informational commands
 plugin.map 'ffxiv leves', :action => 'leve_timer'
 plugin.map 'ffxiv leve', :action => 'leve_timer'
 plugin.map 'ffxiv status :realm', :action => 'realm_status'
+
+# User settings
+plugin.map 'ffxiv set world :world', :action => 'set_default_world'
 
 # Admin shit
 plugin.map 'ffxiv admin chan :chan', :action => 'admin_channel', :auth_path => 'edit'
