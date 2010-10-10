@@ -1,5 +1,12 @@
 # Copyright 2010 owlmanatt <owlmanatt@gmail.com>. 
 # No rights reserved, go hog wild.
+#
+# The latest version of this plugin can be found at 
+# <http://github.com/OwlManAtt/rbot-plugins/blob/master/ffxiv.rb>.
+#
+# To configure the optional settings:
+#   config set ffxiv.default_world lindblum   # world to show when 'ffxiv' is invoked.
+#   ffxiv admin chan #my-ffxiv-channel        # channel to notify when leves reset.
 
 require 'rubygems'
 require 'nokogiri'
