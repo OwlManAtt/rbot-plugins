@@ -4,6 +4,7 @@
 require 'rubygems'
 require 'nokogiri'
 require 'open-uri'
+require 'ffxiv-lodestone' # gem install ffxiv-lodestone
 
 module String
   def humanize
@@ -12,10 +13,15 @@ module String
 end # string
 
 class FFXIVPlugin < Plugin
-  DEFAULT_STATUS_REALM = 'figaro'
   LEVE_EPOCH = Time.at(1285113600) # Sep 22 00:00:00 UTC 2010 
   LEVE_RESET_PERIOD = 60 * 60 * 36 # 36 hours 
+  ANIMA_RESET_PERIOD = 60 * 60 * 4 # 4 hours
   @timer_handle = nil
+
+  # "!config set ffxiv.default_world lindblum" to change.
+  Config.register Config::StringValue.new('ffxiv.default_world',
+    :default => 'figaro',
+    :desc => "Which world should be used by default if none is specified?")
 
   def initialize
     super
@@ -23,11 +29,11 @@ class FFXIVPlugin < Plugin
   end
 
   def help(plugin, topic='')
-    "FFXIV utilities. Usage: ffxiv => Figaro world status. ffxiv status [world] => server status. ffxiv set world [world] => set your own default server to check the status of. ffxiv leves => guildleve reset countdown."
+    "FFXIV utilities. Usage: ffxiv => #{@bot.config['ffxiv.default_world'].humanize} world status. ffxiv status [world] => server status. ffxiv set world [world] => set your own default server to check the status of. ffxiv leves => guildleve reset countdown. ffxiv anima => anima countdown timer. ffxiv jobs [world] [name] => job list."
   end # help
 
   def realm_status(m, params)
-    world = params.has_key?(:realm) ? params[:realm].downcase : get_default_realm(m.sourcenick)
+    world = params.has_key?(:realm) ? params[:realm].downcase : get_default_realm(m.sourcenick).downcase
     worlds = Hash.new 
 
     # 1996-style HTML. Fuck my life with a ferret.
@@ -53,9 +59,16 @@ class FFXIVPlugin < Plugin
         #m.reply "Skipping #{tr.content}"
       end
     end
-    
+   
+    # The lobby hates freedom. The status reported on the lobby is pretty much always
+    # incorrect. Square leaves it up when it's refusing connections, and that state cannot
+    # be polled without reverse-engineering their stupid auth/lobby protocols, doing a login,
+    # and getting its status. So, shrugging man unless its down hard.
+    worlds['lobby'] = '┐(´д｀)┌' unless worlds['lobby'].downcase == 'offline' 
+
     if worlds.has_key?(world)
-      color = {'offline' => '04', 'online' => '09'}
+      color = Hash.new('08')
+      color.merge!({'offline' => '04', 'online' => '09'})
       #m.reply "#{world.humanize}: \003#{color[worlds[world].downcase]}#{worlds[world]}\003"
       
       status = [world, 'login', 'lobby', 'patch'].uniq.map do |s|
@@ -80,20 +93,53 @@ class FFXIVPlugin < Plugin
   end # set_default_world
 
   def leve_timer(m, params)
-    m.reply "Guildleves will reset in #{Utils.secs_to_string(time_to_leve_reset)}."
+    m.reply "Guildleves will reset in #{Utils.secs_to_string(time_to_next(LEVE_RESET_PERIOD))}."
   end
 
+  # TODO Unvalidated assumptions: (1) Anima regenerates on a global timer, not a character-specific
+  # timer. (2) Anima regen started when service went online, just like the leve countdown.
+  def anima_timer(m, params)
+    m.reply "You will gain 1 anima in #{Utils.secs_to_string(time_to_next(ANIMA_RESET_PERIOD))}. [Experimental]"
+  end
+
+  def list_jobs(m, params)
+    params[:character] = params[:character].join ' '
+    reg_key = "charid_#{params[:world].downcase}_#{params[:character].downcase.gsub(' ','-')}"
+
+    # If this character has been loaded before, query from its cached ID. This saves the gem from
+    # having to do two HTTP GETs. If we don't have the ID cached, load by name and save it for
+    # later.
+    begin
+      if @registry.key? reg_key
+        #m.reply "load by id #{@registry[reg_key]}"
+        char = FFXIVLodestone::Character.new(:id => @registry[reg_key])
+      else
+        #m.reply "load by name"
+        char = FFXIVLodestone::Character.new(:world => params[:world], :name => params[:character])
+      end
+    rescue => e
+      m.reply "Error: #{e.to_s}"
+    end
+    
+    @registry[reg_key] = char.character_id unless @registry.key? reg_key
+    list = char.jobs.levelled.sort {|a,b| b.rank <=> a.rank }.map {|j| "#{j.name}: #{j.rank}" }
+    list.unshift "Physical Level: #{char.physical_level}" 
+
+    m.reply list.join " \00306**\003 "
+  end
+
+  # Invoked when the module is unloaded or rescanned.
   def cleanup
     remove_leve_announce()
   end
 
-  def time_to_leve_reset(now = Time.now)
-    periods_since = (now - LEVE_EPOCH) / LEVE_RESET_PERIOD 
+  def time_to_next(period_secs, now = Time.now)
+    periods_since = (now - LEVE_EPOCH) / period_secs 
 
     # right on the nose would fuck it up and report 0 seconds instead of now + period. 
     periods_since += 1 if periods_since == periods_since.ceil
 
-    next_reset = LEVE_EPOCH + (periods_since.ceil * LEVE_RESET_PERIOD)
+    next_reset = LEVE_EPOCH + (periods_since.ceil * period_secs)
     
     return next_reset - now
   end
@@ -107,6 +153,10 @@ class FFXIVPlugin < Plugin
     end
   end
 
+  # This is an option managed by the plugin, not a configuration option managed by rbot.
+  # I do this because rbot's config command does not allow me to run a method when the value
+  # is changed; only require a rescan. That's kind of a dumb solution, so this method manages
+  # it instead.
   def admin_channel(m, params)
     if params.key? :chan
       @registry[:announce_channel] = params[:chan]
@@ -119,14 +169,14 @@ class FFXIVPlugin < Plugin
   protected
   def get_default_realm(nick)
     k = "world_#{nick}"
-    return DEFAULT_STATUS_REALM unless @registry.key? k
+    return @bot.config['ffxiv.default_world'] unless @registry.key? k
 
     @registry[k]
   end
 
   def add_leve_announce
     now = Time.now
-    next_reset = now + time_to_leve_reset(now)
+    next_reset = now + time_to_next(LEVE_RESET_PERIOD,now)
     announce_channel = @registry[:announce_channel]
     
     if announce_channel
@@ -154,13 +204,20 @@ plugin.default_auth('debug', false)
 plugin.default_auth('edit', false)
 
 # Informational commands
-['ffxiv leve[s]', 'leve', 'leves'].each { |c| plugin.map c, :action => 'leve_timer' }
+['ffxiv leve[s]', 'leve', 'leves', 'levequest', 'levequests', 'guildleve', 'guildleves'].each do |c| 
+  plugin.map c, :action => 'leve_timer' 
+end
+plugin.map 'ffxiv anima', :action => 'anima_timer'
+plugin.map 'anima', :action => 'anima_timer'
+
 plugin.map 'ffxiv status :realm', :action => 'realm_status'
+plugin.map 'ffxiv jobs :world *character', :action => 'list_jobs'
+plugin.map 'shock spikes', :action => 'shock_spikes'
 
 # User settings
 plugin.map 'ffxiv set world :world', :action => 'set_default_world'
 
-# Admin shit
+# Admin/debugging tools. 
 plugin.map 'ffxiv admin chan :chan', :action => 'admin_channel', :auth_path => 'edit'
 plugin.map 'ffxiv admin chan', :action => 'admin_channel', :auth_path => 'edit'
 plugin.map 'ffxiv debug announce next', :action => 'debug_next', :auth_path => 'debug'
