@@ -7,9 +7,11 @@ class HoloPlugin < Plugin
     @tracking_numbers = {
       #'Case' => '1ZX799390310081385',
       #'Everything else' => '1ZX799331231131463'
-      'Disks' => {:number => '1Z462E560321092067', :courier => 'ups'},
-      'Fans' => {:number => '1ZX799470329512449', :courier => 'ups'},
-      'Monitor' => {:number => '134619891746049', :courier => 'fedex'},
+      #'Disks' => {:number => '1Z462E560321092067', :courier => 'ups'},
+      #'Fans' => {:number => '1ZX799470329512449', :courier => 'ups'},
+      #'Monitor' => {:number => '134619891746049', :courier => 'fedex'},
+      
+      "Final Fantasy™ XIV COLLECTOR'S EDITION" => {:number => '1Z04462W1300903990', :courier => 'ups'}
     }
     super
   end # initialize 
