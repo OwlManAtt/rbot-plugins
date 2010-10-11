@@ -36,7 +36,7 @@ class FFXIVPlugin < Plugin
   end
 
   def help(plugin, topic='')
-    "FFXIV utilities. Usage: ffxiv => #{@bot.config['ffxiv.default_world'].humanize} world status. ffxiv status [world] => server status. ffxiv set world [world] => set your own default server to check the status of. ffxiv leves => guildleve reset countdown. ffxiv anima => anima countdown timer. ffxiv jobs [world] [name] => job list."
+    "FFXIV utilities. Usage: ffxiv => #{@bot.config['ffxiv.default_world'].humanize} world status. ffxiv status [world] => server status. ffxiv set world [world] => set your own default server to check the status of. ffxiv leves => guildleve reset countdown. ffxiv anima => anima countdown timer. ffxiv jobs [world] [name] => job list. ffxiv price [item] => median price (via ffxivpro)."
   end # help
 
   def realm_status(m, params)
@@ -98,6 +98,31 @@ class FFXIVPlugin < Plugin
 
     m.okay
   end # set_default_world
+
+  def fetch_price(m, params)
+    item_name = params[:item].join ' '.humanize
+    doc = Nokogiri::HTML(open("http://ffxivpro.com/search/item?q=#{params[:item].join '+'}"))
+    
+    prices = doc.search('table[@class="stdtbl"]/tr/td[contains("Median")]')
+    unless prices
+      m.reply "No data is available for #{item_name}."
+    else
+      unless prices.first
+        m.reply "No data could be found for #{item_name}."
+      else
+        prices = prices.first.next_sibling.next_sibling.search('div').map do |element|
+          e = element.content.strip.split ': ' 
+          name = e[0]
+          name = item_name if name == 'NQ'
+          p = e[1].gsub(/(\d)(?=(\d\d\d)+(?!\d))/, "\\1,")
+
+          "#{name}: #{p} gil"
+        end # map
+        
+        m.reply prices.join " \00306**\003 "
+      end
+    end
+  end # fetch_price
 
   def leve_timer(m, params)
     m.reply "Guildleves will reset in #{Utils.secs_to_string(time_to_next(LEVE_RESET_PERIOD))}."
@@ -216,6 +241,7 @@ plugin.default_auth('edit', false)
 end
 plugin.map 'ffxiv anima', :action => 'anima_timer'
 plugin.map 'anima', :action => 'anima_timer'
+plugin.map 'ffxiv price *item', :action => 'fetch_price'
 
 plugin.map 'ffxiv status :realm', :action => 'realm_status'
 plugin.map 'ffxiv jobs :world *character', :action => 'list_jobs'
