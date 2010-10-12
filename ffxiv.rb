@@ -100,7 +100,7 @@ class FFXIVPlugin < Plugin
   end # set_default_world
 
   def fetch_price(m, params)
-    item_name = params[:item].join ' '.humanize
+    item_name = params[:item].map {|word| word.capitalize }.join ' '
     doc = Nokogiri::HTML(open("http://ffxivpro.com/search/item?q=#{params[:item].join '+'}"))
     
     prices = doc.search('table[@class="stdtbl"]/tr/td[contains("Median")]')
