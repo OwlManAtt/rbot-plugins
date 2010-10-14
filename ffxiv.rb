@@ -11,6 +11,7 @@
 require 'rubygems'
 require 'nokogiri'
 require 'open-uri'
+require 'net/http' # should come with open-uri, but I use this stand-alone too, so...
 require 'ffxiv-lodestone' # gem install ffxiv-lodestone
 
 module String
@@ -23,7 +24,8 @@ class FFXIVPlugin < Plugin
   LEVE_EPOCH = Time.at(1285113600) # Sep 22 00:00:00 UTC 2010 
   LEVE_RESET_PERIOD = 60 * 60 * 36 # 36 hours 
   ANIMA_RESET_PERIOD = 60 * 60 * 4 # 4 hours
-  @timer_handle = nil
+  @timer_handle = nil # Leve reset announce handle
+  @patch_check_handle = nil
 
   # "!config set ffxiv.default_world lindblum" to change.
   Config.register Config::StringValue.new('ffxiv.default_world',
@@ -124,6 +126,23 @@ class FFXIVPlugin < Plugin
     end
   end # fetch_price
 
+  # This is a pretty useless method. It gives us the latets version for scheduling a patch
+  # watcher. It will probably be unreliable if used if both a client and boot patch drop on the
+  # same day. 
+  def latest_version(m, params)
+    #ver = params[:version] 
+    m.reply "FFXIV Version: #{version_check(Time.now.strftime('%Y.%m.%d'))}"
+  end # latest_version
+
+  def start_patch_watcher(m, params)
+    ver = params[:version]
+    frequency = 120 # every two minutes
+    remove_patch_watcher() # don't fuck up and schedule two :|
+    add_patch_watcher(ver,m.channel,frequency)
+
+    m.okay
+  end # start_patch_watcher
+
   def leve_timer(m, params)
     m.reply "Guildleves will reset in #{Utils.secs_to_string(time_to_next(LEVE_RESET_PERIOD))}."
   end
@@ -163,6 +182,7 @@ class FFXIVPlugin < Plugin
   # Invoked when the module is unloaded or rescanned.
   def cleanup
     remove_leve_announce()
+    remove_patch_watcher()
   end
 
   def time_to_next(period_secs, now = Time.now)
@@ -177,11 +197,16 @@ class FFXIVPlugin < Plugin
   end
 
   def debug_next(m, params)
-    h = @timer_handle
+    handles = { 'Leve reset' => @timer_handle, 'Patch watcher' => @patch_check_handle }
 
-    @bot.timer.instance_eval do 
-      m.reply "Handle invalid." unless @actions.key? h
-      m.reply "Next run @ #{@actions[h].next}"
+    handles.each do |name,h|
+      @bot.timer.instance_eval do 
+        if @actions.key? h
+          m.reply "#{name} - Handle ID #{h}. Next run @ #{@actions[h].next}."
+        else
+          m.reply "#{name} - Handle invalid."
+        end
+      end
     end
   end
 
@@ -204,6 +229,46 @@ class FFXIVPlugin < Plugin
     return @bot.config['ffxiv.default_world'] unless @registry.key? k
 
     @registry[k]
+  end
+
+  def version_check(ver)
+    url = URI.parse("http://ver01.ffxiv.com:54996/patch/vercheck/ffxiv/win32/release/game/#{ver}")
+
+    server = Net::HTTP.new(url.host, url.port)
+    get = Net::HTTP::Get.new(url.request_uri)
+    get.initialize_http_header({'User-Agent' => 'FINAL FANTASY XIV Patch Client'})
+    
+    response = server.request(get)
+    if response.kind_of? Net::HTTPNoContent
+      # No new patch.
+      return response['x-latest-version']
+    elsif response.kind_of? Net::HTTPOK 
+      # There is a newer version available.
+      return response['x-latest-version']
+    else
+      log "[FFXIV] Unknown patch version (#{ver}): #{response.code}"
+    end
+
+    return nil 
+  end # version_check
+
+  def add_patch_watcher(ver,announce,frequency)
+    @patch_check_handle = @bot.timer.add(frequency, {:repeat => false}) do
+      version = version_check(ver)
+      if version == nil
+        @bot.say announce, "\02\00309FFXIV\02 - Patch watcher encountered an error and has died horribly."
+      elsif version == ver 
+        #@bot.say announce, "FFXIV DEBUG: No new version yet; cycling..." 
+        add_patch_watcher(ver) # Reschedule and try again soon!
+      else
+        @bot.say announce, "\02\00309FFXIV\02 - Patch #{version} is now available!\003" 
+      end
+    end
+  end
+
+  def remove_patch_watcher()
+    @bot.timer.remove(@patch_check_handle) if @patch_check_handle
+    @patch_check_handle = nil
   end
 
   def add_leve_announce
@@ -234,6 +299,7 @@ end # FFXIVPlugin
 plugin = FFXIVPlugin.new
 plugin.default_auth('debug', false)
 plugin.default_auth('edit', false)
+plugin.default_auth('patch', false)
 
 # Informational commands
 ['ffxiv leve[s]', 'leve', 'leves', 'levequest', 'levequests', 'guildleve', 'guildleves'].each do |c| 
@@ -254,6 +320,10 @@ plugin.map 'ffxiv set world :world', :action => 'set_default_world'
 plugin.map 'ffxiv admin chan :chan', :action => 'admin_channel', :auth_path => 'edit'
 plugin.map 'ffxiv admin chan', :action => 'admin_channel', :auth_path => 'edit'
 plugin.map 'ffxiv debug announce next', :action => 'debug_next', :auth_path => 'debug'
+
+# Patch watcher (admin only)
+plugin.map 'ffxiv version', :action => 'latest_version', :auth_path => 'patch'
+plugin.map 'ffxiv patch watcher :version', :action => 'start_patch_watcher', :auth_path => 'patch'
 
 # Default
 plugin.map 'ffxiv', :action => 'realm_status'
