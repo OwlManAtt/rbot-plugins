@@ -3,41 +3,50 @@ require 'nokogiri'
 require 'open-uri'
 
 class HoloPlugin < Plugin
+  class ShipmentStatusRecord < Struct.new(:label, :status)
+    def to_s
+      if self.status
+        "\00303#{label}\003: #{status.ircify}"
+      else
+        "\00303#{label}\003: No information available."
+      end
+    end
+  end
+
   def initialize
     @tracking_numbers = {
       #'Case' => '1ZX799390310081385',
       #'Everything else' => '1ZX799331231131463'
       #'Disks' => {:number => '1Z462E560321092067', :courier => 'ups'},
       #'Fans' => {:number => '1ZX799470329512449', :courier => 'ups'},
-      #'Monitor' => {:number => '134619891746049', :courier => 'fedex'},
-      
-      "Final Fantasy™ XIV COLLECTOR'S EDITION" => {:number => '1Z04462W1300903990', :courier => 'ups'}
+      #'Monitor' => {:number => '134619891746049', :courier => 'fedex'}
+      # "Final Fantasy™ XIV COLLECTOR'S EDITION" => {:number => '1Z04462W1300903990', :courier => 'ups'}
+      #"IB's dicks" => {:number => '1Z8FX6286801195292', :courier => 'ups'},
+      #"WoW Anthology" => {:number => '1ZA7810W0398708948', :courier => 'ups'}
+      #"Overpriced HID" => {:number => '1Z4F37F10399609311', :courier => 'ups'}
+      "魔法少女リリカルなのは　The MOVIE 1st＜初回限定版＞" => {:number => '424981299085', :courier => 'fedex'}
     }
     super
   end # initialize 
 
   def status(m, params)
-    status_fetch.each {|msg| m.reply msg}
+    status_fetch.each {|msg|
+      m.reply msg
+    }
   end # status
 
   def status_fetch
-    result = @tracking_numbers.map do |label,info|
-      status = ShipmentScreenScraper.send "fetch_#{info[:courier]}", info[:number]     
-
-      if status
-        "\00303#{label}\003: #{status.ircify}"
-      else
-        "\00303#{label}\003: No information available."
-      end
-    end
-
-    return result
+    @tracking_numbers.map {|label,info|
+      ShipmentStatusRecord.new(label, ShipmentScreenScraper.send("fetch_#{info[:courier]}", info[:number]))
+    }
   end # status_fetch
 
   def whine(m, params)
-    status_fetch.each {|msg| @bot.say '#', msg}
+    status_fetch.each {|msg|
+      @bot.say '#', msg if msg.status.ircify != @registry[msg.label]
+      @registry[msg.label] = msg.status.ircify
+    }
   end
-
 end # OwlPlugin
 plugin = HoloPlugin.new
 plugin.map 'holo', :action => 'status'

@@ -8,8 +8,13 @@ class TittyPlugin < Plugin
   end # help
 
   def until(m, params)
-    doc = Nokogiri::HTML(open('http://gomtv.net'))
-    m.reply doc.search('div[@id=mainMenu]//span[@class=tooltip]').last.content.rstrip.lstrip
+    #doc = Nokogiri::HTML(open('http://gomtv.net'))
+    #m.reply doc.search('div[@id=mainMenu]//span[@class=tooltip]').last.content.rstrip.lstrip
+
+    doc = Nokogiri::HTML(open('http://www.gomtv.net/2011gslsponsors1/'))
+    time = doc.search('div[@id=LiveRemainTime]').first.children[2].content.rstrip.lstrip
+
+    m.reply "The GSL starts in #{time}."
   end # until
 
   def stream_url(m, params)
@@ -20,7 +25,8 @@ class TittyPlugin < Plugin
 
     quality = params[:quality].downcase
     if quality == 'hd'
-      m.reply "http://#{titty_ips.pick_one}:8902/view.cgi?hid=1&cid=21&nid=902&uno=14698"
+      #m.reply "http://#{titty_ips.pick_one}:8902/view.cgi?hid=1&cid=21&nid=902&uno=14698"
+      m.reply "Sorry, HD is unavailable. :("
     elsif quality == 'sd'
       m.reply "http://#{titty_ips.pick_one}:8900/view.cgi?hid=1&cid=21&nid=900&uno=11850" 
     else
