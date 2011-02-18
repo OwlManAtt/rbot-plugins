@@ -24,7 +24,8 @@ class HoloPlugin < Plugin
       #"IB's dicks" => {:number => '1Z8FX6286801195292', :courier => 'ups'},
       #"WoW Anthology" => {:number => '1ZA7810W0398708948', :courier => 'ups'}
       #"Overpriced HID" => {:number => '1Z4F37F10399609311', :courier => 'ups'}
-      "魔法少女リリカルなのは　The MOVIE 1st＜初回限定版＞" => {:number => '424981299085', :courier => 'fedex'}
+      #"魔法少女リリカルなのは　The MOVIE 1st＜初回限定版＞" => {:number => '424981299085', :courier => 'fedex'}
+      #'Disk' => {:number => '1ZX799470342426740', :courier => 'ups'},
     }
     super
   end # initialize 

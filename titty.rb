@@ -8,11 +8,11 @@ class TittyPlugin < Plugin
   end # help
 
   def until(m, params)
-    #doc = Nokogiri::HTML(open('http://gomtv.net'))
-    #m.reply doc.search('div[@id=mainMenu]//span[@class=tooltip]').last.content.rstrip.lstrip
+    doc = Nokogiri::HTML(open('http://gomtv.net'))
+    m.reply doc.search('div[@id=mainMenu]//span[@class=tooltip]').last.content.rstrip.lstrip
 
-    doc = Nokogiri::HTML(open('http://www.gomtv.net/2011gslsponsors1/'))
-    time = doc.search('div[@id=LiveRemainTime]').first.children[2].content.rstrip.lstrip
+    #doc = Nokogiri::HTML(open('http://www.gomtv.net/2011gslsponsors1/'))
+    #time = doc.search('div[@id=LiveRemainTime]').first.children[2].content.rstrip.lstrip
 
     m.reply "The GSL starts in #{time}."
   end # until

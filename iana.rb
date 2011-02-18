@@ -4,7 +4,7 @@ require 'nokogiri'
 
 class IanaPlugin < Plugin
   def help(plugin, topic='')
-    "IANA depletion event utilities. @iana => current depletion date estimate. @iana remaining [verbose] => the number of unallocated /8s."
+    "IANA depletion event utilities. @iana => current depletion date estimate. @iana remaining => the number of unallocated /8s."
   end # help
 
   def iana(m, params)
@@ -13,19 +13,8 @@ class IanaPlugin < Plugin
   end # iana
 
   def remaining(m, params)
-    m.reply "There are #{fetch_unallocated_records().size} unallocated blocks remaining."
+    m.reply "IANA allocated the final block on 2011-02-03 at 09:39 EST."
   end # remaining
-
-  def remaining_detail(m, params)
-    records = fetch_unallocated_records()
-
-    summary = records.map do |record|
-      prefix = record.children[1].content.split('/')[0].to_i
-      "#{prefix}.0.0.0/8"
-    end
-
-    m.reply "Remaining blocks (#{records.size}): " + (summary.join " \00306**\003 ")
-  end
 
   def rir_remaining(m, params)
     value_re = Regexp.new(/value=(.*?)&/)
@@ -39,17 +28,9 @@ class IanaPlugin < Plugin
     m.reply "Remaining blocks per RIR (/8s): %s" % \
         rir_remaining.map{|pair| "%s: %.3f" % pair }.join(" \00306**\003 ")
   end
-
-  protected
-  def fetch_unallocated_records
-    doc = Nokogiri::XML(open('http://www.iana.org/assignments/ipv4-address-space/ipv4-address-space.xml'))
-
-    doc.search("record/status[text()='UNALLOCATED']").map(&:parent)
-  end
 end # OwlPlugin
 plugin = IanaPlugin.new
-plugin.map 'iana', :action => 'iana'
+plugin.map 'iana', :action => 'remaining'
 plugin.map 'iana remaining', :action => 'remaining'
-plugin.map 'iana remaining verbose', :action => 'remaining_detail'
 plugin.map 'rir remaining', :action => 'rir_remaining'
 
