@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'nokogiri'
 require 'open-uri'
+require 'chronic'
 
 class TittyPlugin < Plugin
   def help(plugin, topic='')
@@ -9,12 +10,24 @@ class TittyPlugin < Plugin
 
   def until(m, params)
     doc = Nokogiri::HTML(open('http://gomtv.net'))
-    m.reply doc.search('div[@id=mainMenu]//span[@class=tooltip]').last.content.rstrip.lstrip
+    next_match = doc.search('div[@id=mainMenu]//span[@class=tooltip]').last.content.rstrip.lstrip
 
-    #doc = Nokogiri::HTML(open('http://www.gomtv.net/2011gslsponsors1/'))
+    if next_match =~ /Next LIVE starts in /i
+      next_match.gsub!(/Next LIVE starts in /i,'')
+
+      # -9 hours to undo the KST bullshit  
+      at = Chronic::parse(next_match) - (60 * 60 * 9)
+      m.reply "Live in #{Utils.secs_to_string(at - Time.now)}."
+    elsif next_match =~ /Please tune in and enjoy/i
+      m.reply "Live right now!"
+    else
+      m.reply "GOM has not scheduled a match."
+    end
+
+    #doc = Nokogiri::HTML(open('http://www.gomtv.net/2011gslsponsors2/'))
     #time = doc.search('div[@id=LiveRemainTime]').first.children[2].content.rstrip.lstrip
 
-    m.reply "The GSL starts in #{time}."
+    #m.reply "The GSL starts in #{time}."
   end # until
 
   def stream_url(m, params)
