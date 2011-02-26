@@ -3,7 +3,7 @@ require 'nokogiri'
 require 'open-uri'
 
 class RiftPlugin < Plugin
-  DEFAULT_SHARD = :lotham
+  DEFAULT_SHARD = :briarcliff
 
   class Server < Hash
     def initialize(args)
