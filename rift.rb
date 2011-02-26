@@ -3,7 +3,7 @@ require 'nokogiri'
 require 'open-uri'
 
 class RiftPlugin < Plugin
-  DEFAULT_SHARD = :briarcliff
+  DEFAULT_SHARD = :lotham
 
   class Server < Hash
     def initialize(args)
@@ -16,8 +16,15 @@ class RiftPlugin < Plugin
 
     protected
     def colour_status
-      status = "\00304Down\003"
-      status = "\00309Up\003" if self[:online]
+      if self[:online]
+        if self[:locked]
+          status = "\00308Locked\003"
+        else
+          status = "\00309Up\003"
+        end
+      else
+        status = "\00304Down\003"
+      end
       
       status    
     end
@@ -25,7 +32,24 @@ class RiftPlugin < Plugin
 
   class Shard < Server 
     def ircify
-      "#{self[:shard].capitalize}-#{self[:type]}: #{colour_status}"
+      type = []
+      if self[:pvp] == false and self[:rp] == false
+        type << 'PvE'
+      else
+        type << 'PvP' if self[:pvp]
+        type << 'RP' if self[:rp]
+      end
+
+      if self[:queue_size] > 0
+        color = '04'
+        color = '08' if self[:queue_size] <= 100
+
+        queue_string = "\003#{color}Queue: #{self[:queue_size].to_s.gsub(/(\d)(?=(\d\d\d)+(?!\d))/, "\\1,")}\003"
+      else
+        queue_string = "\00309No queue!\003"
+      end 
+
+      "#{self[:shard].to_s.capitalize}-#{type.join '-'}: #{colour_status} \00306**\003 #{queue_string}"
     end
   end # Shard Server
 
@@ -40,37 +64,29 @@ class RiftPlugin < Plugin
   end # help
 
   def status(m, params)
-    # I was wondering if you could possibly write a less-parsable document you fucking dick?
-    doc = Nokogiri::HTML(open('http://www.riftstatus.com/index.php'))
-    status_table = doc.search("h3.maintitle[contains('Server Status (NA)')]").first.next_sibling.next_sibling.children[1]
-
-    system = {}
+    doc = Nokogiri::HTML(open('http://www.riftgame.com/en/status/na-status.xml'))
+    
     shards = {}
-    status_table.children.each do |row|
-      status = false
-      if row.children[0].search('img')[0].attr('src') == 'images/online.png'
-        status = true
-      end
-      
-      name = row.children[4].content.strip
-      type = row.children[6].content.strip.gsub('(', '').gsub(')', '')
-      language = 'EN' # row.children[6].content.strip # changed to a flag, fuck parsing this.
-      server = {:shard => name, :type => type, :language => language, :online => status}
+    doc.search('//shard').each do |shard|
+      s = {
+        :shard => shard.attr('name').downcase.to_sym, 
+        :rp => (shard.attr('rp').downcase == 'true' ? true : false),
+        :pvp => (shard.attr('pvp').downcase == 'true' ? true : false),
+        :language => shard.attr('language'),
+        :online => (shard.attr('online').downcase == 'true' ? true : false),
+        :locked => (shard.attr('locked').downcase == 'true' ? true : false),
+        :population => shard.attr('population'),
+        :queue_size => shard.attr('queued').to_i,
+      }
 
-      if ['patch server', 'login server'].include? name.downcase
-        name = name.split[0].downcase.to_sym
-        system[name] = System.new(server)
-      else
-        shards[name.downcase.to_sym] = Shard.new(server) 
-      end
+      shards[s[:shard]] = Shard.new(s)
     end
 
-    # Check the name first. If no name was give, use the default.
     status_shard = get_default_shard m.sourcenick 
     status_shard = params[:shard].downcase.to_sym if params.has_key? :shard
 
     if shards.has_key? status_shard
-      m.reply [shards[status_shard].ircify, system[:login].ircify, system[:patch].ircify].join " \00306**\003 "
+      m.reply [shards[status_shard].ircify].join " \00306**\003 "
     else
       m.reply "I don't know anything about that shard. :("
     end
