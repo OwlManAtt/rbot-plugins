@@ -88,7 +88,9 @@ class RiftPlugin < Plugin
     if shards.has_key? status_shard
       m.reply [shards[status_shard].ircify].join " \00306**\003 "
     else
-      m.reply "I don't know anything about that shard. :("
+      # Sometimes it goes completely blank and/or realms are missing when they are removed
+      # from the cluster (or a user asked for dumb shit).
+      m.reply "There isn't any information available for that realm. :("
     end
   end # status
 
