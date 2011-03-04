@@ -60,7 +60,7 @@ class RiftPlugin < Plugin
   end # System Server
 
   def help(plugin, topic='')
-    "Rift utilities. @rift => default shard status. @rift shard [name] => shard status. @rift set default [shard name] => set your default shard for the status command."
+    "Rift utilities. @rift => default shard status. @rift shard [name] => shard status. @rift set default [shard name] => set your default shard for the status command. @rift value [platinum] => Value in USD (for lotham/defiant)."
   end # help
 
   def status(m, params)
@@ -105,6 +105,14 @@ class RiftPlugin < Plugin
     m.okay
   end
 
+  def platseller_price(m, params)
+    doc = Nokogiri::XML(open('http://sellriftgold.com/ashx/getgoldprice.ashx?kgamesort=RIFT&kservername=Lotham-Defiants&goldtype=Platinum', {'Referer' => 'http://sellriftgold.com/RIFT_Gold.html', 'Accept' => 'text/javascript, text/html, application/xml, text/xml, */*'}))
+    price = doc.search('//Table/goldPrice').first.content.to_f
+    total = params[:plat].to_f * price 
+
+    m.reply "Lotham - Defiant: #{format_currency(params[:plat], :currency_symbol => '')} platinum = #{format_currency(total)} USD" 
+  end # platseller_price
+
   protected
   def get_default_shard(nick)
     k = "shard_#{nick}"
@@ -112,8 +120,27 @@ class RiftPlugin < Plugin
 
     @registry[k].downcase.to_sym
   end
+
+  # Source = http://codesnippets.joyent.com/posts/show/1812
+  def format_currency(number, options={})
+    # :currency_before => false puts the currency symbol after the number
+    # default format: $12,345,678.90
+    options = {:currency_symbol => "$", :delimiter => ",", :decimal_symbol => ".", :currency_before => true}.merge(options)
+    
+    # split integer and fractional parts 
+    int, frac = ("%.2f" % number).split('.')
+    # insert the delimiters
+    int.gsub!(/(\d)(?=(\d\d\d)+(?!\d))/, "\\1#{options[:delimiter]}")
+    
+    if options[:currency_before]
+      options[:currency_symbol] + int + options[:decimal_symbol] + frac
+    else
+      int + options[:decimal_symbol] + frac + options[:currency_symbol]
+    end
+  end
 end 
 plugin = RiftPlugin.new
 plugin.map 'rift shard :shard', :action => 'status'
 plugin.map 'rift set default :shard', :action => 'set_default_shard'
+plugin.map 'rift value :plat', :action => 'platseller_price'
 plugin.map 'rift', :action => 'status'
