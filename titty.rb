@@ -12,14 +12,14 @@ class TittyPlugin < Plugin
     doc = Nokogiri::HTML(open('http://gomtv.net'))
     next_match = doc.search('div[@id=mainMenu]//span[@class=tooltip]').last.content.rstrip.lstrip
 
-    if next_match =~ /Next LIVE starts in /i
+    at = nil # holds the next match's time, if available.
+    if next_match =~ /Please tune in and enjoy/i
+      m.reply "Live right now!"
+    elsif next_match =~ /Next LIVE starts in /i
       next_match.gsub!(/Next LIVE starts in /i,'')
 
       # -9 hours to undo the KST bullshit  
       at = Chronic::parse(next_match) - (60 * 60 * 9)
-      m.reply "Live in #{Utils.secs_to_string(at - Time.now)}."
-    elsif next_match =~ /Please tune in and enjoy/i
-      m.reply "Live right now!"
     else
       # OK, no match in their scheduler. Let's fall back to the calendar.
       schedule_js = nil
@@ -35,18 +35,16 @@ class TittyPlugin < Plugin
         end
 
         doc = Nokogiri::HTML(data['stime'])
-        next_match = Chronic.parse(doc.root.content.gsub('@ ','').gsub(/\(.*\)$/,'').split("\302\240").reverse.join) - (60 * 60 * 9)
-
-        m.reply "Live in #{Utils.secs_to_string(next_match - Time.now)}."
-      else
-        m.reply "GOM has not scheduled a match."
+        next_match = doc.root.content.gsub('@ ','').gsub(/\(.*\)$/,'').split("\302\240").reverse.join
+        at = Chronic::parse(next_match) - (60 * 60 * 9)
       end
     end
 
-    #doc = Nokogiri::HTML(open('http://www.gomtv.net/2011gslsponsors2/'))
-    #time = doc.search('div[@id=LiveRemainTime]').first.children[2].content.rstrip.lstrip
-
-    #m.reply "The GSL starts in #{time}."
+    if at
+      m.reply "Live in #{Utils.secs_to_string(at - Time.now)}."
+    else
+      m.reply "GOM has not scheduled a match."
+    end
   end # until
 
   def stream_url(m, params)
