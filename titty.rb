@@ -21,7 +21,26 @@ class TittyPlugin < Plugin
     elsif next_match =~ /Please tune in and enjoy/i
       m.reply "Live right now!"
     else
-      m.reply "GOM has not scheduled a match."
+      # OK, no match in their scheduler. Let's fall back to the calendar.
+      schedule_js = nil
+      open('http://gomtv.net').each_line do |line| 
+        schedule_js = line if line =~ /^viewDetail\(/
+      end
+
+      if schedule_js
+        data = {}
+        schedule_js.gsub('viewDetail({','').gsub("})});\r\n",'').split("',").each do |line|
+          line = line.split " : '"
+          data[line[0]] = line[1]
+        end
+
+        doc = Nokogiri::HTML(data['stime'])
+        next_match = Chronic.parse(doc.root.content.gsub('@ ','').gsub(/\(.*\)$/,'').split("\302\240").reverse.join) - (60 * 60 * 9)
+
+        m.reply "Live in #{Utils.secs_to_string(next_match - Time.now)}."
+      else
+        m.reply "GOM has not scheduled a match."
+      end
     end
 
     #doc = Nokogiri::HTML(open('http://www.gomtv.net/2011gslsponsors2/'))
