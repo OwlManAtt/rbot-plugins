@@ -28,7 +28,8 @@ module ::ShipmentScreenScraper
 
   def self.fetch_ups(number)
     doc = Nokogiri::HTML(open("http://wwwapps.ups.com/WebTracking/processInputRequest?sort_by=status&tracknums_displayed=1&TypeOfInquiryNumber=T&loc=en_US&InquiryNumber1=#{number}&track.x=0&track.y=0"))
-    latest_row = doc.search('fieldset[@id=showPackageProgress]//tr')[1]
+    latest_row = doc.search('div[@id=collapse3]')[0].next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.search('tr')[1]
+
     if latest_row
       status = ShipmentStatus.new(
         :number => number,
