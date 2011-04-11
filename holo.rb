@@ -26,6 +26,12 @@ class HoloPlugin < Plugin
       #"Overpriced HID" => {:number => '1Z4F37F10399609311', :courier => 'ups'}
       #"魔法少女リリカルなのは　The MOVIE 1st＜初回限定版＞" => {:number => '424981299085', :courier => 'fedex'}
       #'Disk' => {:number => '1ZX799470342426740', :courier => 'ups'},
+      #'WiMAX CPE' => {:number => '485264002054', :courier => 'fedex'},
+      #'WiMAX CPE the 2nd' => {:number => '485264110765', :courier => 'fedex'},
+      #'WiMAX CPE - ODU ' => {:number => '1Z3X3F271343232801', :courier => 'ups'},
+      # 'Plus Headphones' => {:number => '1Z0X118A1210790602', :courier => 'ups'},
+      #'HD 280 Pro' => {:number => '1Z5993920144768026', :courier => 'ups'},
+      'Gentech CPE' => {:number => '1Z07R37W9096472131', :courier => 'ups'},
     }
     super
   end # initialize 
