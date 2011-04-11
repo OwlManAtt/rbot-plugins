@@ -7,9 +7,9 @@ class IanaPlugin < Plugin
     "IANA depletion event utilities. @iana => current depletion date estimate. @iana remaining => the number of unallocated /8s."
   end # help
 
-  def iana(m, params)
+  def first_rir(m, params)
     date = @bot.httputil.get('http://ipv4depletion.com/iana.js').gsub(/^.*?"(.*?)".*?$/, '\1')
-    m.reply "Today's IANA depletion date estimate: #{date}"
+    m.reply "Today's first RIR depletion date estimate: #{date}"
   end # iana
 
   def remaining(m, params)
@@ -27,10 +27,13 @@ class IanaPlugin < Plugin
     end
     m.reply "Remaining blocks per RIR (/8s): %s" % \
         rir_remaining.map{|pair| "%s: %.3f" % pair }.join(" \00306**\003 ")
-  end
+  end # rir_remaining
 end # OwlPlugin
+
+
 plugin = IanaPlugin.new
 plugin.map 'iana', :action => 'remaining'
 plugin.map 'iana remaining', :action => 'remaining'
+plugin.map 'rir', :action => 'first_rir'
 plugin.map 'rir remaining', :action => 'rir_remaining'
 
