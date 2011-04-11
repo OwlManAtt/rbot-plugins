@@ -2,19 +2,41 @@ require 'rubygems'
 require 'nokogiri'
 require 'open-uri'
 require 'chronic'
+require 'active_support' # timezone fuckery
 
-class TittyPlugin < Plugin
+class StarcraftPlugin < Plugin
+  EVENTS = {
+    :gsl => :until_gsl,
+    :nasl => :until_nasl,
+    :tsl => :until_tsl,
+  }
+
   def help(plugin, topic='')
-    "Usage: @titty => time until next broadcast. @titty stream (HD|SD) for stream URL."
+    "Available commands: @sc, @gsl, @nasl, @tsl"
   end # help
 
-  def until(m, params)
+  # Display thing.
+  def until(event)
+    at = StarcraftPlugin.send(EVENTS[event].to_s)
+  
+    if at == nil
+      return "Match not scheduled."
+    elsif at == 0
+      return "Live right now!"
+    elsif at > Time.now.to_i
+      return "Live in #{Utils.secs_to_string(at - Time.now.to_i)}."
+    else
+      return "Unknown error: time not handled!"
+    end
+  end # until
+
+  def self.until_gsl
     doc = Nokogiri::HTML(open('http://gomtv.net'))
     next_match = doc.search('div[@id=mainMenu]//span[@class=tooltip]').last.content.rstrip.lstrip
 
     at = nil # holds the next match's time, if available.
     if next_match =~ /Please tune in and enjoy/i
-      m.reply "Live right now!"
+      at = 0
     elsif next_match =~ /Next LIVE starts in /i
       next_match.gsub!(/Next LIVE starts in /i,'')
 
@@ -40,30 +62,60 @@ class TittyPlugin < Plugin
       end
     end
 
-    if at
-      m.reply "Live in #{Utils.secs_to_string(at - Time.now)}."
-    else
-      m.reply "GOM has not scheduled a match."
-    end
-  end # until
+    return at
+  end # until_gsl
 
-  def stream_url(m, params)
-    titty_ips = ['211.43.144.139','211.43.144.141','211.43.144.142','211.43.144.143',
-                '211.43.144.144','211.43.144.145','211.43.144.151','211.43.144.152',
-                '211.43.144.159','211.43.144.233','211.43.144.234','211.43.144.235',
-                '211.43.144.236','211.43.144.238','211.43.144.239','211.43.144.241']
+  def self.until_nasl
+    at = nil # holds the next match's time, if available.
 
-    quality = params[:quality].downcase
-    if quality == 'hd'
-      #m.reply "http://#{titty_ips.pick_one}:8902/view.cgi?hid=1&cid=21&nid=902&uno=14698"
-      m.reply "Sorry, HD is unavailable. :("
-    elsif quality == 'sd'
-      m.reply "http://#{titty_ips.pick_one}:8900/view.cgi?hid=1&cid=21&nid=900&uno=11850" 
-    else
-      m.reply "Sorry, I don't know anything about that quality. :("
+    doc = Nokogiri::HTML(open('http://nasl.tv/Match'))
+    day = doc.search('li.group').first # assumption: old days will fall off the page
+    
+    time = day.search('div.day_details span.date', 'div.day_details span.time').map {|e| e.content.strip }.join(' ').gsub(' (PST)', '')
+    at = Chronic::parse(time)
+
+    Time.zone = 'America/Los_Angeles'
+    at = Time.zone.at(at)
+    Time.zone = 'UTC'
+    at = Time.at(at.to_i - at.utc_offset).to_i
+
+    return at
+  end # until_nasl
+
+  def self.until_tsl
+    at = nil
+
+    useful_line = nil
+    open('http://teamliquid.net').each_line do |line|
+      useful_line = line if line =~ /^\$\("#tslcountdown"\)\.countdown/  
+    end # each_line
+    
+    if useful_line 
+      horrible_time = useful_line.split('(').last.gsub("))});\n",'').split(', ').map {|i| i.split '-' }.flatten
+      horrible_time.delete_at(2) # for some fucking reason, the month is ``04-1'' which is obviously wrong...
+      date = horrible_time.slice!(0,3)
+
+      at = Chronic::parse("#{date.join('-')} #{horrible_time.join(':')}").to_i
+      at = 0 if at < Time.now.to_i # handle live right now (poorly)
+    end # useful line
+
+    return at
+  end # until_tsl
+
+  def event(m, params)
+    m.reply self.until(params[:event])
+  end # event
+
+  def list_events(m, params)
+    EVENTS.each do |name,method|
+      m.reply "\002#{name.to_s.upcase}\002: #{self.until(name)}"
     end
-  end
-end # TittyPlugin
-plugin = TittyPlugin.new
-plugin.map 'titty', :action => 'until'
-plugin.map 'titty stream :quality', :action => 'stream_url'
+  end # list_events
+
+end # StarcraftPlugin
+plugin = StarcraftPlugin.new
+plugin.map 'sc', :action => 'list_events'
+plugin.map 'gsl', :action => 'event', :defaults => {:event => :gsl} 
+plugin.map 'titty', :action => 'event', :defaults => {:event => :gsl} # legacy
+plugin.map 'nasl', :action => 'event', :defaults => {:event => :nasl} 
+plugin.map 'tsl', :action => 'event', :defaults => {:event => :tsl}
