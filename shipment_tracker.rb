@@ -77,7 +77,10 @@ module ::ShipmentScreenScraper
       nil
     end
   end # fetch fedex
- 
+
+  def self.fetch_purolator(number)
+  
+  end # fetch purolator
 end
 
 class ShipmentTrackerPlugin < Plugin

@@ -37,19 +37,24 @@ class StarcraftPlugin < Plugin
     at = nil # holds the next match's time, if available.
     if next_match =~ /Please tune in and enjoy/i
       at = 0
+      log "[GSL] Live right now!"
     elsif next_match =~ /Next LIVE starts in /i
       next_match.gsub!(/Next LIVE starts in /i,'')
+      log "[GSL] Live starts in..."
 
       # -9 hours to undo the KST bullshit  
-      at = Chronic::parse(next_match) - (60 * 60 * 9)
+      at = (Chronic::parse(next_match) - (60 * 60 * 9)).to_i
     else
       # OK, no match in their scheduler. Let's fall back to the calendar.
+      log "[GSL] Checking schedule..."
       schedule_js = nil
       open('http://gomtv.net').each_line do |line| 
         schedule_js = line if line =~ /^viewDetail\(/
       end
-
+      
       if schedule_js
+        log "We are using this JS: #{schedule_js.class}"
+
         data = {}
         schedule_js.gsub('viewDetail({','').gsub("})});\r\n",'').split("',").each do |line|
           line = line.split " : '"
@@ -58,17 +63,19 @@ class StarcraftPlugin < Plugin
 
         doc = Nokogiri::HTML(data['stime'])
         next_match = doc.root.content.gsub('@ ','').gsub(/\(.*\)$/,'').split("\302\240").reverse.join
-        at = Chronic::parse(next_match) - (60 * 60 * 9)
+        at = (Chronic::parse(next_match) - (60 * 60 * 9)).to_i
       end
     end
 
-    return at
+    return at 
   end # until_gsl
 
   def self.until_nasl
     at = nil # holds the next match's time, if available.
-
+    
     doc = Nokogiri::HTML(open('http://nasl.tv/Match'))
+    #return 0 if doc.search('//a[@id="live"]').size > 0 # Live right now! notice
+
     day = doc.search('li.group').first # assumption: old days will fall off the page
     
     time = day.search('div.day_details span.date', 'div.day_details span.time').map {|e| e.content.strip }.join(' ').gsub(' (PST)', '')

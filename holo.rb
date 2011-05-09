@@ -31,7 +31,7 @@ class HoloPlugin < Plugin
       #'WiMAX CPE - ODU ' => {:number => '1Z3X3F271343232801', :courier => 'ups'},
       # 'Plus Headphones' => {:number => '1Z0X118A1210790602', :courier => 'ups'},
       #'HD 280 Pro' => {:number => '1Z5993920144768026', :courier => 'ups'},
-      'Gentech CPE' => {:number => '1Z07R37W9096472131', :courier => 'ups'},
+      #'Gentech CPE' => {:number => '1Z07R37W9096472131', :courier => 'ups'},
     }
     super
   end # initialize 

@@ -9,7 +9,7 @@ class IanaPlugin < Plugin
 
   def first_rir(m, params)
     date = @bot.httputil.get('http://ipv4depletion.com/iana.js').gsub(/^.*?"(.*?)".*?$/, '\1')
-    m.reply "Today's first RIR depletion date estimate: #{date}"
+    m.reply "Today's RIPE estimated depletion date: #{date}"
   end # iana
 
   def remaining(m, params)
