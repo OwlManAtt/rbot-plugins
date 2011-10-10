@@ -7,8 +7,8 @@ require 'active_support' # timezone fuckery
 class StarcraftPlugin < Plugin
   EVENTS = {
     :gsl => :until_gsl,
-    :nasl => :until_nasl,
-    :tsl => :until_tsl,
+    #:nasl => :until_nasl, # irrelevant
+    #:tsl => :until_tsl, # over
   }
 
   def help(plugin, topic='')
@@ -31,6 +31,27 @@ class StarcraftPlugin < Plugin
   end # until
 
   def self.until_gsl
+    # p.n_main_gbn_liveicon a
+    doc = Nokogiri::HTML(open('http://gomtv.net'))
+    next_match = doc.search('p.n_main_gbn_liveicon a').first.attr('title').strip
+
+    at = nil # holds the next match's time, if available.
+    if next_match =~ /^LIVE$/i
+      at = 0
+      log "[GSL] Live right now!"
+    elsif next_match =~ /Next LIVE starts in /i
+      next_match.gsub!(/Next LIVE starts in /i,'')
+      log "[GSL] Live starts in..."
+
+      # -9 hours to undo the KST bullshit  
+      at = (Chronic::parse(next_match) - (60 * 60 * 9)).to_i
+    end
+
+    return at
+  end # until_gsl
+
+  # Deprecated - GOM changed the website completely 2011-10-06.
+  def self.until_gsl_classicGOM
     doc = Nokogiri::HTML(open('http://gomtv.net'))
     next_match = doc.search('div[@id=mainMenu]//span[@class=tooltip]').last.content.rstrip.lstrip
 
