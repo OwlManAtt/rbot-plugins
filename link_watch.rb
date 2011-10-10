@@ -10,6 +10,11 @@ end # Hyperlink
 class LinkWatchPlugin < Plugin
   def initialize
     super
+
+    Config.register Config::ArrayValue.new('links.ignore',
+      :default => [],
+      :desc => "Ignored nick list"
+    )
   
     # Baller regexp from <http://daringfireball.net/2010/07/improved_regex_for_matching_urls>
     @url_regexp = Regexp.new('(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))') 
@@ -39,10 +44,37 @@ class LinkWatchPlugin < Plugin
       :link => $~[1],
       :linked_at => m.time
     )
-    link.save
+    link.save unless @bot.config['links.ignore'].member? m.sourcenick.downcase
 
     # m.reply "URL detected in #{m.channel} by #{m.sourcenick} at #{m.time}: #{$~[1]}"
-  end
+  end # message
 
+  def ignore_list(m, params)
+    list = @bot.config['links.ignore']
+
+    if list.length == 0
+      m.reply "No ignored nicks!"
+    else
+      m.reply list.join ', '
+    end
+  end # ignore_list
+  
+  def ignore(m, params)
+    name = params[:name].downcase
+    @bot.config['links.ignore'] << name unless @bot.config['links.ignore'].member? name
+
+    m.reply "#{name} is now being ignored!"
+  end # ignore
+
+  def unignore(m, params)
+    name = params[:name].downcase
+    @bot.config['links.ignore'].delete name
+
+    m.reply "#{name} will have their links logged again!"
+  end # unignore
 end # LinkWatchPlugin
 plugin = LinkWatchPlugin.new
+plugin.default_auth 'ignore', false
+plugin.map 'links ignore_list', :action => 'ignore_list', :auth_path => 'ignore'
+plugin.map 'links ignore :name', :action => 'ignore', :auth_path => 'ignore'
+plugin.map 'links unignore :name', :action => 'unignore', :auth_path => 'ignore'
