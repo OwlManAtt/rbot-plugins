@@ -31,7 +31,8 @@ module ::ShipmentScreenScraper
     latest_row = doc.search('div[@id=collapse3]').first
 
     if latest_row
-      latest_row = latest_row.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.search('tr')[1]
+      #latest_row = latest_row.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.next_sibling.search('tr')[1]
+      latest_row = latest_row.next_sibling.next_sibling.next_sibling.next_sibling.search('table/tr')[1]
 
       status = ShipmentStatus.new(
         :number => number,
