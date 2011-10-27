@@ -7,12 +7,13 @@ class BitcoinPlugin < Plugin
     end # help
 
     def status(m, params)
-      json = open("http://mining.bitcoin.cz/accounts/profile/json/5339-b08a146b04934cec6e6d8041b014ec2f").read
+      json = open("https://mining.bitcoin.cz/accounts/profile/json/5339-b08a146b04934cec6e6d8041b014ec2f").read
       profile = JSON.parse(json)
       coins = profile['unconfirmed_reward'].to_f + profile['confirmed_reward'].to_f  
       m.reply "Balance: #{coins} BTC"
 
       #ticker_json = open('https://mtgox.com/code/data/ticker.php', {:ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE}).read
+      #ticker_json = open('https://mtgox.com/code/data/ticker.php').read
       #t = JSON.parse(ticker_json)
       #t = t['ticker']
       #coin_value = coins * t['buy'].to_f
