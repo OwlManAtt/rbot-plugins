@@ -33,7 +33,11 @@ class HoloPlugin < Plugin
       #'HD 280 Pro' => {:number => '1Z5993920144768026', :courier => 'ups'},
       #'Gentech CPE' => {:number => '1Z07R37W9096472131', :courier => 'ups'},
       #'mbp' => {:number => '502637201859', :courier => 'fedex'}
-      'Hina - Battery' => {:number => '1ZX2988V0315124748', :courier => 'ups'},
+      #'Hina - Battery' => {:number => '1ZX2988V0315124748', :courier => 'ups'},
+      #'nevans-mini memory' => {:number => '1ZE2E8630251346259', :courier => 'ups'},
+      #'iPad 3' => {:number => '1ZV5E9426607651702 ', :courier => 'ups'},
+      #'iPad case' => {:number => '013840214981689', :courier => 'fedex'},
+      'plus thing' => {:number => '1ZA50W291384393585', :courier => 'ups'},
     }
     super
   end # initialize 
