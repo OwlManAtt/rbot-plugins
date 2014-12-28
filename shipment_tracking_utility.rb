@@ -157,6 +157,30 @@ class ShipmentTrackingUtilityPlugin < Plugin
 				end
 			end
 		end
+
+    module IParcel
+      NAME_KEYS = [:iparcel]
+			PRIMARY_NAME = 'iparcel'
+
+      def self.fetch(number)
+				doc = Nokogiri::HTML(open("http://tracking.i-parcel.com/Home/Index?trackingnumber=#{number}"))
+			  latest_row = doc.search('table.ipar_trkTable table tbody')[0]	
+
+				if latest_row
+          details = latest_row.search('td')
+					status = ShipmentStatus.new(
+						:number => number,
+						:locatiun => details[2].inner_text,
+						:time => details[1].inner_text,
+						:activity => details[0].inner_text,
+						:carrier => PRIMARY_NAME
+					)
+				else
+					nil
+				end
+      end
+    end
+
 		module PackageTrackr
 			NAME_KEYS = [:packagetrackr]
 			PRIMARY_NAME = 'packagetrackr'
@@ -238,6 +262,7 @@ class ShipmentTrackingUtilityPlugin < Plugin
 		@scrapers.register(Scrapers::Newegg)
 		@scrapers.register(Scrapers::PackageTrackr)
 		@scrapers.register(Scrapers::USPS)
+		@scrapers.register(Scrapers::IParcel)
 	end
 	attr_accessor :scrapers
 
